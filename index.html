@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <link rel="icon">
+  <title>JENJAN 電商倉儲物流</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="./bootstrap.min.css">
+</head>
+<style>
+  .hint-wrapper {
+    text-wrap: nowrap;
+  }
+  #result_wrapper {
+    margin-left: 9.65vw;
+  }
+  @media (max-width: 991px) {
+    #result_wrapper {
+      margin-left: 0;
+      margin-top: 2rem;
+    }
+  }
+  
+  @media (max-width: 576px) {
+    .hint-wrapper {
+      text-wrap: wrap;
+    }
+  }
+</style>
+
+<body>
+  <div id="app">
+    <div
+      id="logo"
+      class="position-fixed"
+      style="top: 17px; left: 8%;">
+      <img
+        src="./logo_ecommerce_fulfillment_sol.png"
+        style="width: 235px;"/>
+    </div>
+    <div
+      id="language"
+      class="position-fixed"
+      style="top: 26px; right: 8.5%;">
+      <button
+        class="btn btn-primary rounded-pill">
+        <span class="d-none d-sm-inline">Language</span>
+        <i class="bi bi-globe ms-1"></i>
+      </button>
+    </div>
+    <div
+      class="d-flex flex-column flex-lg-row align-items-center align-items-lg-start justify-content-center fw-bold"
+      :class="{ 'justify-content-between': result }"
+      style="margin: auto 6.9vw; margin-top:109px; ">
+      <div id="seach_wrapper" style="max-width: 400px; width: 95%;">
+        <div class="d-flex bg-body-secondary rounded-pill py-2 px-3 justify-content-between">
+          <button
+            type="button"
+            class="btn rounded-pill lh-1"
+            :class="{ 'btn-primary': mode === 'find' }"
+            @click="mode = 'find'"
+            style="width:158px;">
+            查詢包裹
+          </button>
+          <button 
+            type="button"
+            class="btn rounded-pill lh-1"
+            :class="{ 'btn-primary':mode === 'unknown' }"
+            @click=" mode = 'unknown'"
+            style="width:158px;">
+            查詢不明包裹
+          </button>
+        </div>
+        <div
+          v-if="mode === 'find'"
+          id="where_bag"
+          class="mt-4 text-center fw-bold">
+          <div
+            :class="{ 'text-start pt-3': result }">
+            <h1>你的包裹在哪?</h1>
+            <h4 class="my-2">請輸入包裹代碼</h4>
+          </div>
+          <div class="mb-3  position-relative">
+            <input
+              type="text"
+              class="form-control lh-lg"
+              placeholder="輸入物流單號"
+              aria-label="輸入物流單號"
+              aria-describedby="輸入物流單號"
+              v-model="packageNumber">
+              <button
+                class="btn btn-outline-primary position-absolute top-50 end-0 translate-middle-y py-1 px-2 d-flex align-items-center me-3"
+                type="button"
+                id="button-addon2">
+                <i class="bi bi-upc-scan me-2"></i>
+              QR
+            </button>
+          </div>
+          <div class="d-flex grid gap-3 mt-4 w-full">
+            <div
+              type="button"
+              class="g-col-6 btn btn-outline-primary w-50"
+              @click="clear">
+              清除重填
+            </div>
+            <div
+              @click="search"
+              type="button"
+              class="g-col-6 btn btn-primary w-50">
+              查詢
+            </div>
+          </div>
+          <div
+            class="text-center d-flex flex-column align-items-center hint-wrapper"
+            style="margin-top: 62px">
+            <h5
+              :class="{ 'text-danger': inputNumberError }">
+              輸入包裹查詢號碼時請勿輸入「-」或國字或是全形數字等符號。
+            </h5>
+            <h5>
+              資料保留時間僅為三個月，您將無法查詢三個月之前的資料。
+            </h5>
+          </div>
+        </div>
+        <div v-if="mode === 'unknown'">
+          <h1 class="text-center my-5">施工中...</h1>
+        </div>
+      </div>
+      <div
+        v-if="result"
+        class="flex-grow-1"
+        id="result_wrapper">
+        <table class="table table-striped table-hover">
+          <thead class="rounded-top">
+            <tr class="table-dark ">
+              <th
+                class="ps-3"
+                style="border-top-left-radius: 8px;">
+                事件
+              </th>
+              <th
+                style="border-top-right-radius: 8px; width:25.9vw;">
+                時間
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="track in result.trackingList">
+              <td class="ps-3">{{ track.rtn_msg }}</td>
+              <td>{{ track.event_time }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <h5 class="mt-4">
+          資料來源： {{result.provider || '無資料來源'}}
+        </h5>
+      </div>
+    </div>
+  </div>
+</body>
+<script>
+  const { ref } = Vue;
+  const app = Vue.createApp({
+    setup () {
+      const mode = ref('find')
+      const packageNumber = ref('')
+      const inputNumberError = ref(false)
+      const result = ref(null)
+      const search = () => {
+        if (inputNumberError.value) return alert('請輸入正確包裹查詢號碼')
+
+        axios
+          .get('https://wms.jenjan.com.tw/api/v4/public/logistics/status/P31226228764')
+          .then(function (response) {
+            const { logistics_provider, tracking } = response.data
+            result.value = {
+              provider: logistics_provider || '',
+              trackingList: tracking || []
+            }
+          })
+          .catch(function (response) {
+            console.log(response);
+          })
+      }
+      
+      return { mode, packageNumber, inputNumberError, result, search }
+    },
+    methods: {
+      clear () {
+        this.packageNumber = ''
+      }
+    },
+    watch: {
+      packageNumber(newVal, oldVal) {
+        this.inputNumberError = newVal === '' ? false : !/^[a-z\d]+$/i.test(newVal)
+      }
+    }
+  })
+  app.mount("#app");
+</script>
+
+</html>
